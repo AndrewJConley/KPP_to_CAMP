@@ -1,0 +1,160 @@
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# User: Set here the F90 compiler and options
+#       Pedefined compilers: INTEL, PGF, HPUX, LAHEY
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+COMPILER = GNU
+#COMPILER = LAHEY
+#COMPILER = INTEL
+#COMPILER = PGF
+#COMPILER = HPUX
+
+FC_GNU     = g95
+FOPT_GNU   = -cpp -O -pg -fbounds-check 
+FC_LAHEY   = lf95
+FOPT_LAHEY = -Cpp --pca
+#FOPT_LAHEY = -Cpp --chk a,e,s,u --pca --ap -O0 -g --trap
+FC_INTEL   = ifort 
+FOPT_INTEL = -cpp -O -mp -pc80 -prec_div -tpp7 -implicitnone
+FC_PGF     = pgf90
+FOPT_PGF   = -Mpreprocess -O -fast -pc 80 -Kieee
+FC_HPUX    = f90
+FOPT_HPUX  = -O -u +Oall +check=on
+
+# define FULL_ALGEBRA for non-sparse integration
+FC   = $(FC_$(COMPILER))
+FOPT = $(FOPT_$(COMPILER)) # -DFULL_ALGEBRA
+
+LIBS =
+#LIBS = -llapack -lblas
+
+# Command to create Matlab mex gateway routines 
+# Note: use $(FC) as the mex Fortran compiler
+MEX  = mex
+
+GENSRC = redhc_made_soa_vbs_Precision.f90  \
+	 redhc_made_soa_vbs_Parameters.f90     \
+	 redhc_made_soa_vbs_Global.f90  
+
+GENOBJ = redhc_made_soa_vbs_Precision.o    \
+	 redhc_made_soa_vbs_Parameters.o       \
+	 redhc_made_soa_vbs_Global.o     
+
+FUNSRC = redhc_made_soa_vbs_Function.f90 
+FUNOBJ = redhc_made_soa_vbs_Function.o 
+
+JACSRC = redhc_made_soa_vbs_JacobianSP.f90  redhc_made_soa_vbs_Jacobian.f90
+JACOBJ = redhc_made_soa_vbs_JacobianSP.o    redhc_made_soa_vbs_Jacobian.o
+
+HESSRC = redhc_made_soa_vbs_HessianSP.f90   redhc_made_soa_vbs_Hessian.f90
+HESOBJ = redhc_made_soa_vbs_HessianSP.o     redhc_made_soa_vbs_Hessian.o
+
+STMSRC = redhc_made_soa_vbs_StoichiomSP.f90 redhc_made_soa_vbs_Stoichiom.f90 
+STMOBJ = redhc_made_soa_vbs_StoichiomSP.o   redhc_made_soa_vbs_Stoichiom.o
+
+UTLSRC = redhc_made_soa_vbs_Rates.f90 redhc_made_soa_vbs_Util.f90 redhc_made_soa_vbs_Monitor.f90
+UTLOBJ = redhc_made_soa_vbs_Rates.o   redhc_made_soa_vbs_Util.o   redhc_made_soa_vbs_Monitor.o
+
+LASRC  = redhc_made_soa_vbs_LinearAlgebra.f90 
+LAOBJ  = redhc_made_soa_vbs_LinearAlgebra.o   
+
+STOCHSRC = redhc_made_soa_vbs_Stochastic.f90 
+STOCHOBJ = redhc_made_soa_vbs_Stochastic.o 
+
+MAINSRC = redhc_made_soa_vbs_Main.f90   redhc_made_soa_vbs_Initialize.f90   redhc_made_soa_vbs_Integrator.f90 redhc_made_soa_vbs_Model.f90
+MAINOBJ = redhc_made_soa_vbs_Main.o     redhc_made_soa_vbs_Initialize.o     redhc_made_soa_vbs_Integrator.o   redhc_made_soa_vbs_Model.o 
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# User: modify the line below to include only the
+#       objects needed by your application
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ALLOBJ = $(GENOBJ) $(FUNOBJ) $(JACOBJ) $(HESOBJ) $(STMOBJ) \
+	 $(UTLOBJ) $(LAOBJ)
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# User: modify the line below to include only the
+#       executables needed by your application
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+all:    exe
+
+exe:	$(ALLOBJ) $(MAINOBJ) 
+	$(FC) $(FOPT) $(ALLOBJ) $(MAINOBJ) $(LIBS) -o redhc_made_soa_vbs.exe
+
+stochastic:$(ALLOBJ) $(STOCHOBJ) $(MAINOBJ)
+	$(FC) $(FOPT) $(ALLOBJ) $(STOCHOBJ) $(MAINOBJ) $(LIBS) \
+	-o redhc_made_soa_vbs_stochastic.exe
+
+mex:    $(ALLOBJ)
+	$(MEX) FC#$(FC) -fortran -O redhc_made_soa_vbs_mex_Fun.f90     $(ALLOBJ)
+	$(MEX) FC#$(FC) -fortran -O redhc_made_soa_vbs_mex_Jac_SP.f90  $(ALLOBJ)
+	$(MEX) FC#$(FC) -fortran -O redhc_made_soa_vbs_mex_Hessian.f90 $(ALLOBJ)
+
+clean:
+	rm -f redhc_made_soa_vbs*.o redhc_made_soa_vbs*.mod \
+	redhc_made_soa_vbs*.dat redhc_made_soa_vbs.exe redhc_made_soa_vbs*.mexglx \
+	redhc_made_soa_vbs.map
+
+distclean:
+	rm -f redhc_made_soa_vbs*.o redhc_made_soa_vbs*.mod \
+	redhc_made_soa_vbs*.dat redhc_made_soa_vbs.exe redhc_made_soa_vbs.map \
+	redhc_made_soa_vbs*.f90 redhc_made_soa_vbs_*.mexglx
+
+redhc_made_soa_vbs_Precision.o: redhc_made_soa_vbs_Precision.f90 
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Parameters.o: redhc_made_soa_vbs_Parameters.f90 \
+	            redhc_made_soa_vbs_Precision.o
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Monitor.o: redhc_made_soa_vbs_Monitor.f90 \
+	             redhc_made_soa_vbs_Precision.o
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Global.o: redhc_made_soa_vbs_Global.f90 \
+	            redhc_made_soa_vbs_Parameters.o redhc_made_soa_vbs_Precision.o
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Initialize.o: redhc_made_soa_vbs_Initialize.f90  $(GENOBJ) 
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Function.o: redhc_made_soa_vbs_Function.f90  $(GENOBJ) 
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Stochastic.o: redhc_made_soa_vbs_Stochastic.f90  $(GENOBJ) 
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_JacobianSP.o: redhc_made_soa_vbs_JacobianSP.f90 $(GENOBJ)
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Jacobian.o: redhc_made_soa_vbs_Jacobian.f90  $(GENOBJ) redhc_made_soa_vbs_JacobianSP.o
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_LinearAlgebra.o: redhc_made_soa_vbs_LinearAlgebra.f90 $(GENOBJ) redhc_made_soa_vbs_JacobianSP.o
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Rates.o: redhc_made_soa_vbs_Rates.f90  $(GENOBJ) 
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_HessianSP.o: redhc_made_soa_vbs_HessianSP.f90  $(GENOBJ)
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Hessian.o:  redhc_made_soa_vbs_Hessian.f90 $(GENOBJ) redhc_made_soa_vbs_HessianSP.o
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_StoichiomSP.o: redhc_made_soa_vbs_StoichiomSP.f90 $(GENOBJ)
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Stoichiom.o: redhc_made_soa_vbs_Stoichiom.f90  $(GENOBJ) redhc_made_soa_vbs_StoichiomSP.o
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Util.o: redhc_made_soa_vbs_Util.f90  $(GENOBJ) redhc_made_soa_vbs_Monitor.o
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Main.o: redhc_made_soa_vbs_Main.f90  $(ALLOBJ) redhc_made_soa_vbs_Initialize.o redhc_made_soa_vbs_Model.o redhc_made_soa_vbs_Integrator.o
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Model.o: redhc_made_soa_vbs_Model.f90  $(ALLOBJ) redhc_made_soa_vbs_Integrator.o
+	$(FC) $(FOPT) -c $<
+
+redhc_made_soa_vbs_Integrator.o: redhc_made_soa_vbs_Integrator.f90  $(ALLOBJ)
+	$(FC) $(FOPT) -c $<

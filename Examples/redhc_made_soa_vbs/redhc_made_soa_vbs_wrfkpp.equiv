@@ -1,0 +1,16 @@
+! use this file for species that have different
+! names in WRF and KPP
+!
+! currently case sensitive !
+!
+! left column     right column
+! name in WRF     name in KPP
+HO_nt             OH_nt
+HNO4              HO2NO2
+HCHO              CH2O
+ACETP             ROOH
+MGLY              CH3COCHO
+ALD               CH3CHO
+ISOPR             ISOP
+TOL               TOLUENE
+XPAR_nt           RXPAR_nt
