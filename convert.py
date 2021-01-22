@@ -11,10 +11,6 @@ parser.add_argument('--outfile', type=str, nargs='?', default='parsed_file',
 args = parser.parse_args()
 
 
-
-
-
-
 ## Function to split based on a token and .trim
 def clean_split(string, token):
   split_string = string.split(token)
@@ -22,8 +18,19 @@ def clean_split(string, token):
   trimmed_clean_split_string = [var.strip() for var in clean_split_string]
   return trimmed_clean_split_string
 
+def coefficient_and_molecule( product_string ):
+  coeff_search=re.match(r"\d*\.?\d*",product_string)
+  if(coeff_search):
+    coefficient = coeff_search.group()
+  else:
+    coefficient = ''
+  product_search = re.search(r"[A-z]\S*" ,product_string)
+  if(product_search):
+    product = product_search.group()
+  else:
+    product = 'error'
+  return([coefficient,product])
 
-  
 ## Load kpp file
 with open(args.filename,'r') as file:
   for line in file:
@@ -36,7 +43,18 @@ with open(args.filename,'r') as file:
     line=re.sub(r";", "", line)         ## remove anything following ;
     line=line.strip()                   ## remove starting and ending whitespace
     [reaction, rate_constant] = clean_split(line, ":")   
-    print(reaction + " : \t" + rate_constant)
+    [reactant_string, product_string] = clean_split(reaction, "=")   
+    reactants=clean_split(reactant_string, "+")
+    product_and_yield_strings_array=clean_split(product_string, "+")
+    product_yield_array = []
+    for product_and_yield in product_and_yield_strings_array:
+      product_yield_array.append(coefficient_and_molecule(product_and_yield))
+    print(reactants)
+    print(" -> ")
+    print(product_yield_array)
+    print(" : ")
+    print(rate_constant)
+    print("   ")
 
 
 #kpp_file_string = open(args.filename,'r').read()
