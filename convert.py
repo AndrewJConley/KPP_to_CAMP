@@ -2,6 +2,7 @@
 import argparse
 import os
 import re
+import json
 
 parser = argparse.ArgumentParser(description='Parse KPP File with (WARNING) limited understanding of kpp format.')
 parser.add_argument('filename', metavar='filename', type=str, nargs=None,
@@ -10,6 +11,8 @@ parser.add_argument('--outfile', type=str, nargs='?', default='parsed_file',
                     help='filename containing json of parsed data')
 args = parser.parse_args()
 
+#def wrf_chem_to_CAMP(rate_constant):
+  
 
 ## Function to split based on a token and .trim
 def clean_split(string, token):
@@ -20,56 +23,51 @@ def clean_split(string, token):
 
 def coefficient_and_molecule( product_string ):
   coeff_search=re.match(r"\d*\.?\d*",product_string)
+  product = {}
   if(coeff_search):
-    coefficient = coeff_search.group()
+    product["yield"]=coeff_search.group()
   else:
-    coefficient = ''
+    product["yield"]= ''
   product_search = re.search(r"[A-z]\S*" ,product_string)
   if(product_search):
-    product = product_search.group()
+    product["product"]=product_search.group()
   else:
-    product = 'error'
-  return([coefficient,product])
+    product["product"]='***error***'
+  return(product)
 
 ## Load kpp file
 with open(args.filename,'r') as file:
+  file_conversion = {
+    "filename":args.filename,
+    "ignored_lines":[],
+    "reaction":[]
+  }
   for line in file:
     if line.startswith('#'):            ## skip over comments
+      file_conversion["ignored_lines"].append(line)
       continue
     if line.startswith('//'):           ## skip over section heads
+      file_conversion["ignored_lines"].append(line)
       continue
+
+    line_data = {
+      "original line":line,
+    }
     line=line.strip()                   ## remove starting and ending whitespace
     line=re.sub(r"{.*?}", "", line)     ## remove {}-delimited KPP comments
     line=re.sub(r";", "", line)         ## remove anything following ;
     line=line.strip()                   ## remove starting and ending whitespace
-    [reaction, rate_constant] = clean_split(line, ":")   
+    [reaction, line_data["rate constant"]] = clean_split(line, ":")   
     [reactant_string, product_string] = clean_split(reaction, "=")   
-    reactants=clean_split(reactant_string, "+")
+    line_data["reactants"]=clean_split(reactant_string, "+")
     product_and_yield_strings_array=clean_split(product_string, "+")
-    product_yield_array = []
+    line_data["products"] = []
     for product_and_yield in product_and_yield_strings_array:
-      product_yield_array.append(coefficient_and_molecule(product_and_yield))
-    print(reactants)
-    print(" -> ")
-    print(product_yield_array)
-    print(" : ")
-    print(rate_constant)
-    print("   ")
-
-
-#kpp_file_string = open(args.filename,'r').read()
-#print(kpp_file_string)
-#kpp_lines = kpp_file_string.split("\n")
-#print(kpp_lines)
-
-
-
-## Remove lines starting with # or //
-
-## Split file based on ";"
-
-## Remove all Data between {}
-
-## Remove any blank lines and .trim
+      line_data["products"].append(coefficient_and_molecule(product_and_yield))
+    #line_json = json.dumps(line_data, indent=4)
+    #print(line_json)
+    file_conversion["reaction"].append(line_data)
+    converted_file = json.dumps(file_conversion, indent=4)
+  print(converted_file)
 
 
