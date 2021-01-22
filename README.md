@@ -1,6 +1,11 @@
 # KPP_to_CAMP
 
+Use at great risk.
+
 Parses KPP files under a significant number of assumptions, due to lack of a clear syntax.
+
+This targets a number of WRF-chem files and one potential CAMP data format
+
 
 Usage
 ```
