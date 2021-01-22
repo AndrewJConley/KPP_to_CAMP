@@ -14,6 +14,13 @@ args = parser.parse_args()
 #def wrf_chem_to_CAMP(rate_constant):
   
 
+def is_convertable_to_float(value):
+  try:
+    float(value)
+    return True
+  except:
+    return False
+
 ## Function to split based on a token and .trim
 def clean_split(string, token):
   split_string = string.split(token)
@@ -22,18 +29,24 @@ def clean_split(string, token):
   return trimmed_clean_split_string
 
 def coefficient_and_molecule( product_string ):
-  coeff_search=re.match(r"\d*\.?\d*",product_string)
-  product = {}
-  if(coeff_search):
-    product["yield"]=coeff_search.group()
-  else:
-    product["yield"]= ''
   product_search = re.search(r"[A-z]\S*" ,product_string)
   if(product_search):
-    product["product"]=product_search.group()
+    molecule = product_search.group()
   else:
-    product["product"]='***error***'
-  return(product)
+    molecule = "***error***" 
+
+  coeff_search=re.match(r"\d*\.?\d*",product_string)
+  if(coeff_search):
+    stoic_coeff = coeff_search.group()
+    if stoic_coeff:
+      if is_convertable_to_float(stoic_coeff):
+        num = float(stoic_coeff)
+      else:
+        num = "***error***"
+    else:
+      num = ""
+
+  return([molecule,num])
 
 ## Load kpp file
 with open(args.filename,'r') as file:
@@ -51,23 +64,34 @@ with open(args.filename,'r') as file:
       continue
 
     line_data = {
-      "original line":line,
+      "wrf-kpp specification":line,
     }
     line=line.strip()                   ## remove starting and ending whitespace
     line=re.sub(r"{.*?}", "", line)     ## remove {}-delimited KPP comments
     line=re.sub(r";", "", line)         ## remove anything following ;
     line=line.strip()                   ## remove starting and ending whitespace
     [reaction, line_data["rate constant"]] = clean_split(line, ":")   
+
     [reactant_string, product_string] = clean_split(reaction, "=")   
-    line_data["reactants"]=clean_split(reactant_string, "+")
+
+    line_data["reactants"]={}
+    reactant_array=clean_split(reactant_string, "+")
+    for reactant in reactant_array:
+      line_data["reactants"][reactant]={}
+
     product_and_yield_strings_array=clean_split(product_string, "+")
-    line_data["products"] = []
+    line_data["products"] = {}
     for product_and_yield in product_and_yield_strings_array:
-      line_data["products"].append(coefficient_and_molecule(product_and_yield))
-    #line_json = json.dumps(line_data, indent=4)
-    #print(line_json)
+      [molecule,num]=coefficient_and_molecule(product_and_yield)
+      if num:
+        line_data["products"][molecule]={"yield":num}
+      else:
+        line_data["products"][molecule]={}
+
     file_conversion["reaction"].append(line_data)
+
     converted_file = json.dumps(file_conversion, indent=4)
+
   print(converted_file)
 
 
