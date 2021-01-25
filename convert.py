@@ -2,17 +2,19 @@ import argparse
 import os
 import re
 import json
+from tkinter.filedialog import askopenfilename
+
 
 error_string = "***error***"
 
-parser = argparse.ArgumentParser(description='Parse KPP File with many unstated assumptions on format.')
-parser.add_argument('filename', metavar='filename', type=str, nargs=None,
-                    help='kpp file to be digested')
-#parser.add_argument('--outfile', type=str, nargs='?', default='parsed_file',
-#                    help='filename containing json of parsed data')
-args = parser.parse_args()
+# user dialog to get file 
+filename = askopenfilename(
+    initialdir= os.getcwd(),
+    title= "Select a file to convert:",
+    filetypes= ( [('WRF-KPP file', '*.eqn')] )
+)
 
-## Function to split based on a token and .trim
+
 def clean_split(string, token):
   split_string = string.split(token)
   clean_split_string = [var for var in split_string if var]
@@ -113,9 +115,9 @@ def coefficient_and_molecule( product_string ):
   return([molecule,num])
 
 ## Load kpp file
-with open(args.filename,'r') as file:
+with open(filename,'r') as file:
   file_conversion = {
-    "filename":args.filename,
+    "filename":filename,
     "ignored_lines":[],
     "reaction":[]
   }
@@ -136,8 +138,6 @@ with open(args.filename,'r') as file:
     line=line.strip()                   ## remove starting and ending whitespace
     [reaction, line_data["rate constant"]] = clean_split(line, ":")   
 
-    #element = json.loads(wrf_chem_to_CAMP(line_data["rate constant"]))
-    #print(element)
     wrf_chem_to_CAMP(line_data)
 
     [reactant_string, product_string] = clean_split(reaction, "=")   
