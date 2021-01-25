@@ -35,47 +35,53 @@ def convert_float(A):
   return A_arg
 
 
-def unknown(in_rate_constant):
-  rate_constant = in_rate_constant["rate constant"].strip()
-  in_rate_constant["type"]=error_string
+def unknown(line_data):
+  rate_constant = line_data["rate constant"].strip()
+  line_data["type"]=error_string
+  line_data["error"]=error_string
   return 
-def constant(in_rate_constant):
-  rate_constant = in_rate_constant["rate constant"].strip()
+def constant(line_data):
+  rate_constant = line_data["rate constant"].strip()
   value = convert_float(rate_constant)
-  in_rate_constant["type"]="ARRHENIUS"
-  in_rate_constant["A"]=value
+  line_data["type"]="ARRHENIUS"
+  line_data["A"]=value
   return 
-def arrhenius(in_rate_constant):
-  rate_constant = in_rate_constant["rate constant"].strip()
+def arrhenius(line_data):
+  rate_constant = line_data["rate constant"].strip()
   arguments=re.search('\(([^)]+)', rate_constant).group(1)
   arg_array=clean_split(arguments,",")
   A = convert_float(arg_array[0])
   C = convert_float(arg_array[1])
-  in_rate_constant["type"]="ARRHENIUS"
-  in_rate_constant["A"]=A
-  in_rate_constant["C"]=C
+  line_data["type"]="ARRHENIUS"
+  line_data["A"]=A
+  line_data["C"]=C
   return
 
-def wrf_chem_to_CAMP(in_rate_constant):
+def wrf_chem_to_CAMP(line_data):
   # guess the type of reaction from the text of the rate constant
-  rate_constant = in_rate_constant["rate constant"].strip()
+  rate_constant = line_data["rate constant"].strip()
   if "*" in rate_constant:
-    unknown(in_rate_constant)
+    unknown(line_data)
   elif 0==rate_constant.find("ARR2"):
-    arrhenius(in_rate_constant)
+    arrhenius(line_data)
   elif 0==rate_constant.find("TROE"):
-    in_rate_constant["type"]="TROE"
+    line_data["type"]="TROE"
+    line_data["error"]=error_string
   elif 0==rate_constant.find("TROEE"):
-    in_rate_constant["type"]="TROEE"
+    line_data["type"]="TROEE"
+    line_data["error"]=error_string
   elif 0==rate_constant.find("j"):
-    in_rate_constant["type"]="PHOTOLYSIS"
+    line_data["type"]="PHOTOLYSIS"
+    line_data["link"]=line_data["rate constant"]
+    line_data["error"]=error_string
+    #line_data["reactants"].pop("hv")   # assume this reactant is listed
   elif rate_constant.endswith("_dp"):
-    constant(in_rate_constant)
-  elif (rate_constant.find("D") or rate_constant.find("d") or rate_constant.find("E") or rate_constant.find("e")):
-    constant(in_rate_constant)
+    constant(line_data)
+  elif (rate_constant.find("D") or rate_constant.find("d") or rate_constant.find("E") or rate_constant.find("e")) and not rate_constant.find("("):
+    constant(line_data)
   else:
-    unknown(in_rate_constant)
-  in_rate_constant.pop("rate constant")  # remove entry
+    unknown(line_data)
+  line_data.pop("rate constant")  # remove entry
   return
   
 
@@ -140,6 +146,8 @@ with open(args.filename,'r') as file:
     reactant_array=clean_split(reactant_string, "+")
     for reactant in reactant_array:
       line_data["reactants"][reactant]={}
+    if line_data["type"] == "PHOTOLYSIS":  # "hv" is listed as a reactant in wrf file for photodecomposition
+      line_data["reactants"].pop("hv")
 
     product_and_yield_strings_array=clean_split(product_string, "+")
     line_data["products"] = {}
