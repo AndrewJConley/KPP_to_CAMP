@@ -39,42 +39,75 @@ def unknown(camp_reaction):
   rate_constant = camp_reaction["rate constant"].strip()
   camp_reaction["type"]=error_string
   camp_reaction["error"]=error_string
-  return 
-def constant(camp_reaction):
+
+def constant(camp_reaction):  #ARRHENIUS
   rate_constant = camp_reaction["rate constant"].strip()
   value = convert_string_to_float(rate_constant)
   camp_reaction["type"]="ARRHENIUS"
   camp_reaction["A"]=value
-  return 
-def arrhenius(camp_reaction):
-  rate_constant = camp_reaction["rate constant"].strip()
-  arguments=re.search('\(([^)]+)', rate_constant).group(1)
-  arg_array=clean_split(arguments,",")
-  A = convert_string_to_float(arg_array[0])
-  C = convert_string_to_float(arg_array[1])
-  camp_reaction["type"]="ARRHENIUS"
+
+def arrhenius(camp_reaction, parsed_data):
+  A = convert_string_to_float(parsed_data["arguments"][0])
+  C = convert_string_to_float(parsed_data["arguments"][1])
   camp_reaction["A"]=A
   camp_reaction["C"]=C
-  return
+
+
+# Look for something like somename(arg1, arg2, arg3)
+# returns parsed_value= { "name":"somename", "arguments":["arg1","arg2","arg3"] }
+# return function name and arguments in parsed_values
+# true if identifies pattern, false if doesn't 
+def function_signature(rate_constant, parsed_values):
+  try:
+    [raw_name,rest_of_string] = rate_constant.split("(")  # more than one "(" is a problem
+  except:
+    return False
+  name = raw_name.strip()
+  parsed_values["name"]=name
+
+  try:
+    [arguments, tail] = rest_of_string.split(")")
+  except:
+    return False
+  if(len(tail.strip()) > 0):  # something after parenthesis is a problem
+    parsed_values = {}
+    return False
+  try:
+    arg_list = clean_split(arguments,",")  
+  except:
+    return False
+  parsed_values["arguments"]=arg_list
+
+  return True  # probably a function
+
 
 def wrf_chem_to_CAMP(camp_reaction):
   # guess the type of reaction from the text of the rate constant
   rate_constant = camp_reaction["rate constant"].strip()
-  if "*" in rate_constant:
+  parsed_data = {}
+  if(function_signature(rate_constant, parsed_data)):  # if it looks like a function
+    if parsed_data["name"]=="ARR2":
+      camp_reaction["type"]="ARRHENIUS"
+      arrhenius(camp_reaction, parsed_data)
+    elif  parsed_data["name"]=="TROE":
+      camp_reaction["type"]="TROE"
+      camp_reaction["error"]=error_string
+    elif  parsed_data["name"]=="TROEE":
+      camp_reaction["type"]="TROEE"
+      camp_reaction["error"]=error_string
+    elif  parsed_data["name"]=="TROEMS":
+      camp_reaction["type"]="TROEMS"
+      camp_reaction["error"]=error_string
+    elif  parsed_data["name"]=="j":
+      camp_reaction["type"]="PHOTOLYSIS"
+      camp_reaction["error"]=error_string
+    else:
+      camp_reaction["type"]="unknown function"
+      camp_reaction["error"]=error_string
+      
+  # otherwise, it might be some raw reference to a string or number?
+  elif "*" in rate_constant:
     unknown(camp_reaction)
-  elif 0==rate_constant.find("ARR2"):
-    arrhenius(camp_reaction)
-  elif 0==rate_constant.find("TROE"):
-    camp_reaction["type"]="TROE"
-    camp_reaction["error"]=error_string
-  elif 0==rate_constant.find("TROEE"):
-    camp_reaction["type"]="TROEE"
-    camp_reaction["error"]=error_string
-  elif 0==rate_constant.find("j"):
-    camp_reaction["type"]="PHOTOLYSIS"
-    camp_reaction["link"]=camp_reaction["rate constant"]
-    camp_reaction["error"]=error_string
-    #camp_reaction["reactants"].pop("hv")   # assume this reactant is listed
   elif rate_constant.endswith("_dp"):
     constant(camp_reaction)
   elif ("D" in rate_constant or "d" in rate_constant or "E" in rate_constant or "e" in rate_constant) and not "(" in rate_constant:
@@ -136,6 +169,7 @@ with open(args.filename,'r') as file:
     line=line.strip()                   ## remove starting and ending whitespace
     [reaction, camp_reaction["rate constant"]] = clean_split(line, ":")   
 
+    camp_reaction["type"]=""
     wrf_chem_to_CAMP(camp_reaction)
 
     [reactant_string, product_string] = clean_split(reaction, "=")   
@@ -144,8 +178,12 @@ with open(args.filename,'r') as file:
     reactant_array=clean_split(reactant_string, "+")
     for reactant in reactant_array:
       camp_reaction["reactants"][reactant]={}
+
     if camp_reaction["type"] == "PHOTOLYSIS":  # "hv" is listed as a reactant in wrf file for photodecomposition
-      camp_reaction["reactants"].pop("hv")
+      if("hv" in camp_reaction["reactants"]):
+        camp_reaction["reactants"].pop("hv")
+      else:
+        camp_reaction["arguments"]=error_string+"missing hv in original file"
 
     product_and_yield_strings_array=clean_split(product_string, "+")
     camp_reaction["products"] = {}
