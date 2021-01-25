@@ -2,17 +2,15 @@ import argparse
 import os
 import re
 import json
-from tkinter.filedialog import askopenfilename
 
 
 error_string = "***error***"
 
-# user dialog to get file 
-filename = askopenfilename(
-    initialdir= os.getcwd(),
-    title= "Select a file to convert:",
-    filetypes= ( [('WRF-KPP file', '*.eqn')] )
-)
+
+parser = argparse.ArgumentParser(description='Parse KPP File with many unstated assumptions on format.')
+parser.add_argument('filename', metavar='filename', type=str, nargs=None,
+                    help='kpp file to be digested')
+args = parser.parse_args()
 
 
 def clean_split(string, token):
@@ -21,69 +19,69 @@ def clean_split(string, token):
   trimmed_clean_split_string = [var.strip() for var in clean_split_string]
   return trimmed_clean_split_string
 
-def convert_float(A):
-  if "_dp"==A[-3:]:
-    A = A[:-3]
-  elif "_real"==A[-5:]:
-    A = A[:-5]
-  if (A.find("D")): # 1.5D-3
-    A = A.replace("D","e")
-  if (A.find("d")): # 1.5D-3
-    A = A.replace("d","e")
+def convert_string_to_float(string_number):
+  if "_dp"==string_number[-3:]:
+    string_number = string_number[:-3]
+  elif "_real"==string_number[-5:]:
+    string_number = string_number[:-5]
+  if (string_number.find("D")): # 1.5D-3
+    string_number = string_number.replace("D","e")
+  if (string_number.find("d")): # 1.5D-3
+    string_number = string_number.replace("d","e")
   try:
-    A_arg = float(A)
+    converted_number = float(string_number)
   except:
-    A_arg = error_string+":"+A
-  return A_arg
+    converted_number = error_string+":"+string_number
+  return converted_number
 
 
-def unknown(line_data):
-  rate_constant = line_data["rate constant"].strip()
-  line_data["type"]=error_string
-  line_data["error"]=error_string
+def unknown(camp_reaction):
+  rate_constant = camp_reaction["rate constant"].strip()
+  camp_reaction["type"]=error_string
+  camp_reaction["error"]=error_string
   return 
-def constant(line_data):
-  rate_constant = line_data["rate constant"].strip()
-  value = convert_float(rate_constant)
-  line_data["type"]="ARRHENIUS"
-  line_data["A"]=value
+def constant(camp_reaction):
+  rate_constant = camp_reaction["rate constant"].strip()
+  value = convert_string_to_float(rate_constant)
+  camp_reaction["type"]="ARRHENIUS"
+  camp_reaction["A"]=value
   return 
-def arrhenius(line_data):
-  rate_constant = line_data["rate constant"].strip()
+def arrhenius(camp_reaction):
+  rate_constant = camp_reaction["rate constant"].strip()
   arguments=re.search('\(([^)]+)', rate_constant).group(1)
   arg_array=clean_split(arguments,",")
-  A = convert_float(arg_array[0])
-  C = convert_float(arg_array[1])
-  line_data["type"]="ARRHENIUS"
-  line_data["A"]=A
-  line_data["C"]=C
+  A = convert_string_to_float(arg_array[0])
+  C = convert_string_to_float(arg_array[1])
+  camp_reaction["type"]="ARRHENIUS"
+  camp_reaction["A"]=A
+  camp_reaction["C"]=C
   return
 
-def wrf_chem_to_CAMP(line_data):
+def wrf_chem_to_CAMP(camp_reaction):
   # guess the type of reaction from the text of the rate constant
-  rate_constant = line_data["rate constant"].strip()
+  rate_constant = camp_reaction["rate constant"].strip()
   if "*" in rate_constant:
-    unknown(line_data)
+    unknown(camp_reaction)
   elif 0==rate_constant.find("ARR2"):
-    arrhenius(line_data)
+    arrhenius(camp_reaction)
   elif 0==rate_constant.find("TROE"):
-    line_data["type"]="TROE"
-    line_data["error"]=error_string
+    camp_reaction["type"]="TROE"
+    camp_reaction["error"]=error_string
   elif 0==rate_constant.find("TROEE"):
-    line_data["type"]="TROEE"
-    line_data["error"]=error_string
+    camp_reaction["type"]="TROEE"
+    camp_reaction["error"]=error_string
   elif 0==rate_constant.find("j"):
-    line_data["type"]="PHOTOLYSIS"
-    line_data["link"]=line_data["rate constant"]
-    line_data["error"]=error_string
-    #line_data["reactants"].pop("hv")   # assume this reactant is listed
+    camp_reaction["type"]="PHOTOLYSIS"
+    camp_reaction["link"]=camp_reaction["rate constant"]
+    camp_reaction["error"]=error_string
+    #camp_reaction["reactants"].pop("hv")   # assume this reactant is listed
   elif rate_constant.endswith("_dp"):
-    constant(line_data)
+    constant(camp_reaction)
   elif ("D" in rate_constant or "d" in rate_constant or "E" in rate_constant or "e" in rate_constant) and not "(" in rate_constant:
-    constant(line_data)
+    constant(camp_reaction)
   else:
-    unknown(line_data)
-  line_data.pop("rate constant")  # remove entry
+    unknown(camp_reaction)
+  camp_reaction.pop("rate constant")  # remove entry
   return
   
 
@@ -115,52 +113,52 @@ def coefficient_and_molecule( product_string ):
   return([molecule,num])
 
 ## Load kpp file
-with open(filename,'r') as file:
-  file_conversion = {
-    "filename":filename,
+with open(args.filename,'r') as file:
+  camp_file = {
+    "source filename":args.filename,
     "ignored_lines":[],
     "reaction":[]
   }
   for line in file:
     if line.startswith('#'):            ## skip over comments
-      file_conversion["ignored_lines"].append(line)
+      camp_file["ignored_lines"].append(line)
       continue
     if line.startswith('//'):           ## skip over section heads
-      file_conversion["ignored_lines"].append(line)
+      camp_file["ignored_lines"].append(line)
       continue
 
-    line_data = {
+    camp_reaction = {
       "wrf-kpp specification":line,
     }
     line=line.strip()                   ## remove starting and ending whitespace
     line=re.sub(r"{.*?}", "", line)     ## remove {}-delimited KPP comments
     line=re.sub(r";", "", line)         ## remove anything following ;
     line=line.strip()                   ## remove starting and ending whitespace
-    [reaction, line_data["rate constant"]] = clean_split(line, ":")   
+    [reaction, camp_reaction["rate constant"]] = clean_split(line, ":")   
 
-    wrf_chem_to_CAMP(line_data)
+    wrf_chem_to_CAMP(camp_reaction)
 
     [reactant_string, product_string] = clean_split(reaction, "=")   
 
-    line_data["reactants"]={}
+    camp_reaction["reactants"]={}
     reactant_array=clean_split(reactant_string, "+")
     for reactant in reactant_array:
-      line_data["reactants"][reactant]={}
-    if line_data["type"] == "PHOTOLYSIS":  # "hv" is listed as a reactant in wrf file for photodecomposition
-      line_data["reactants"].pop("hv")
+      camp_reaction["reactants"][reactant]={}
+    if camp_reaction["type"] == "PHOTOLYSIS":  # "hv" is listed as a reactant in wrf file for photodecomposition
+      camp_reaction["reactants"].pop("hv")
 
     product_and_yield_strings_array=clean_split(product_string, "+")
-    line_data["products"] = {}
+    camp_reaction["products"] = {}
     for product_and_yield in product_and_yield_strings_array:
       [molecule,num]=coefficient_and_molecule(product_and_yield)
       if num:
-        line_data["products"][molecule]={"yield":num}
+        camp_reaction["products"][molecule]={"yield":num}
       else:
-        line_data["products"][molecule]={}
+        camp_reaction["products"][molecule]={}
 
-    file_conversion["reaction"].append(line_data)
+    camp_file["reaction"].append(camp_reaction)
 
-    camp_version_json = json.dumps(file_conversion, indent=4)
+    camp_version_json = json.dumps(camp_file, indent=4)
 
   print(camp_version_json)
 
