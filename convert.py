@@ -77,7 +77,7 @@ def wrf_chem_to_CAMP(line_data):
     #line_data["reactants"].pop("hv")   # assume this reactant is listed
   elif rate_constant.endswith("_dp"):
     constant(line_data)
-  elif (rate_constant.find("D") or rate_constant.find("d") or rate_constant.find("E") or rate_constant.find("e")) and not rate_constant.find("("):
+  elif ("D" in rate_constant or "d" in rate_constant or "E" in rate_constant or "e" in rate_constant) and not "(" in rate_constant:
     constant(line_data)
   else:
     unknown(line_data)
