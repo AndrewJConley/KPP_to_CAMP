@@ -21,51 +21,62 @@ def clean_split(string, token):
 
 def convert_float(A):
   if "_dp"==A[-3:]:
-    A_arg = float(A[:-3])
+    A = A[:-3]
   elif "_real"==A[-5:]:
-    A_arg = float(A[:-5])
-  else: 
-    try:
-      A_arg = float(A)
-    except:
-      A_arg = error_string+":"+A
+    A = A[:-5]
+  if (A.find("D")): # 1.5D-3
+    A = A.replace("D","e")
+  if (A.find("d")): # 1.5D-3
+    A = A.replace("d","e")
+  try:
+    A_arg = float(A)
+  except:
+    A_arg = error_string+":"+A
   return A_arg
 
 
-def unknown(rate_constant):
-  rate = { "type":error_string, "rate_values":rate_constant }
-  return rate
-def constant(rate_constant):
+def unknown(in_rate_constant):
+  rate_constant = in_rate_constant["rate constant"].strip()
+  in_rate_constant["type"]=error_string
+  return 
+def constant(in_rate_constant):
+  rate_constant = in_rate_constant["rate constant"].strip()
   value = convert_float(rate_constant)
-  rate = { "type":"ARRHENIUS", "A":value }
-  return rate
-def arrhenius(rate_constant):
-  print(rate_constant)
+  in_rate_constant["type"]="ARRHENIUS"
+  in_rate_constant["A"]=value
+  return 
+def arrhenius(in_rate_constant):
+  rate_constant = in_rate_constant["rate constant"].strip()
   arguments=re.search('\(([^)]+)', rate_constant).group(1)
   arg_array=clean_split(arguments,",")
   A = convert_float(arg_array[0])
   C = convert_float(arg_array[1])
-  rate = { "type":"ARRHENIUS", "A":A, "C":C}
-  return rate
+  in_rate_constant["type"]="ARRHENIUS"
+  in_rate_constant["A"]=A
+  in_rate_constant["C"]=C
+  return
 
 def wrf_chem_to_CAMP(in_rate_constant):
   # guess the type of reaction from the text of the rate constant
-  rate_constant = in_rate_constant.strip()
-  if "\*" in rate_constant:
-    rate_type=unknown(rate_constant)
+  rate_constant = in_rate_constant["rate constant"].strip()
+  if "*" in rate_constant:
+    unknown(in_rate_constant)
   elif 0==rate_constant.find("ARR2"):
-    rate_type=arrhenius(rate_constant)
+    arrhenius(in_rate_constant)
   elif 0==rate_constant.find("TROE"):
-    rate_type="TROE"
+    in_rate_constant["type"]="TROE"
   elif 0==rate_constant.find("TROEE"):
-    rate_type="TROEE"
+    in_rate_constant["type"]="TROEE"
   elif 0==rate_constant.find("j"):
-    rate_type="PHOTOLYSIS"
+    in_rate_constant["type"]="PHOTOLYSIS"
   elif rate_constant.endswith("_dp"):
-    rate_type=constant(rate_constant)
+    constant(in_rate_constant)
+  elif (rate_constant.find("D") or rate_constant.find("d") or rate_constant.find("E") or rate_constant.find("e")):
+    constant(in_rate_constant)
   else:
-    rate_type=unknown(rate_constant)
-  return rate_type
+    unknown(in_rate_constant)
+  in_rate_constant.pop("rate constant")  # remove entry
+  return
   
 
 def is_convertable_to_float(value):
@@ -121,7 +132,7 @@ with open(args.filename,'r') as file:
 
     #element = json.loads(wrf_chem_to_CAMP(line_data["rate constant"]))
     #print(element)
-    line_data["rate_type"] = wrf_chem_to_CAMP(line_data["rate constant"])
+    wrf_chem_to_CAMP(line_data)
 
     [reactant_string, product_string] = clean_split(reaction, "=")   
 
@@ -141,8 +152,8 @@ with open(args.filename,'r') as file:
 
     file_conversion["reaction"].append(line_data)
 
-    camp_verion_json = json.dumps(file_conversion, indent=4)
+    camp_version_json = json.dumps(file_conversion, indent=4)
 
-  print(camp_verion_json)
+  print(camp_version_json)
 
 
