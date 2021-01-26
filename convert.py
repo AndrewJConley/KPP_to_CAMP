@@ -171,9 +171,11 @@ def coefficient_and_molecule( product_string ):
 with open(args.filename,'r') as file:
   # open file, and store name for reference
   camp_file = {
+    "name":error_string + ": needs a name",
+    "type":"MECHANISM",
     "source filename":args.filename,
     "ignored_lines":[],
-    "reaction":[]
+    "reactions":[]
   }
 
   # for every line:
@@ -232,7 +234,7 @@ with open(args.filename,'r') as file:
         camp_reaction["products"][molecule]={}
 
     # put the reaction in the list of reactions
-    camp_file["reaction"].append(camp_reaction)
+    camp_file["reactions"].append(camp_reaction)
 
     camp_version_json = json.dumps(camp_file, indent=4)
 
