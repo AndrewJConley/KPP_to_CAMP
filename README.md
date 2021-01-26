@@ -14,5 +14,5 @@ python3 convert.py --help
 
 Example
 ```
-python3 convert.py ./Examples/redhc_made_soa_vbs/redhc_made_soa_vbs.eqn
+python3 convert.py ./Examples/redhc_made_soa_vbs/redhc_made_soa_vbs.eqn > my_translated_mechanism.json
 ```
