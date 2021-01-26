@@ -1,10 +1,12 @@
 # KPP_to_CAMP
 
-Use at great risk.
+The purpose of this code is to support people who want to "convert" WRF-chem / WRF-kpp files to CAMP format.
 
-Parses KPP files under a significant number of assumptions, due to lack of a clear syntax.
+The resulting file requires hand validation of the conversions.
 
-This targets a number of WRF-chem files and one potential CAMP data format
+Many assumptions are made on the source format, due to lack of a clear syntax for KPP files.
+
+This conversion targets a number of WRF-chem files and one potential CAMP data format.
 
 
 Usage
