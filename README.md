@@ -1,6 +1,6 @@
 # KPP_to_CAMP
 
-The purpose of this code is to support people who want to "convert" wrf-chem / wrk-kpp files to CAMP format.
+The purpose of this code is to support people who want to "convert" WRF-chem / WRF-kpp files to CAMP format.
 
 The resulting file requires hand validation of the conversions.
 
