@@ -1,8 +1,8 @@
 # KPP_to_CAMP
 
-Use at great risk.
+This code is fragile and requires hand validation of the conversions.
 
-Parses KPP files under a significant number of assumptions, due to lack of a clear syntax.
+Parses WRF-KPP files under a significant number of assumptions, due to lack of a clear syntax.
 
 This targets a number of WRF-chem files and one potential CAMP data format
 
